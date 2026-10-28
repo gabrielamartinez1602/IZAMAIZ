@@ -4,7 +4,7 @@ import math, random, subprocess, json, sys
 import numpy as np
 
 R=Path(__file__).resolve().parents[1]
-D=R/'work/revision-21'; V=R/'work/revision-06'; B=R/'work/revision-03'; O=R/'outputs'; A=R/'source-assets'
+D=R/'work/revision-23'; V=R/'work/revision-06'; B=R/'work/revision-03'; O=R/'outputs'; A=R/'source-assets'
 W,H,FPS=720,1280,30; C=(W/2,H/2)
 INK=(99,23,48); CREAM=(245,237,218); WHITE=(255,249,235); PINK=(202,116,137)
 import os, shutil
@@ -285,11 +285,15 @@ def founder_note(c,t):
   x,y=start;ex=x+(end[0]-x)*show;ey=y+(end[1]-y)*show
   dx=ex-x;dy=ey-y;ln=max(.1,math.hypot(dx,dy));nx=-dy/ln;ny=dx/ln
   pts=[(x,y),(x+dx*.35+nx*width*.7,y+dy*.35+ny*width*.7),(ex+nx*width*.45,ey+ny*width*.45),(ex+dx/ln*2,ey+dy/ln*2),(ex-nx*width*.5,ey-ny*width*.5),(x+dx*.35-nx*width*.55,y+dy*.35-ny*width*.55)]
-  d.polygon(pts,fill=(13,65,37,255))
-  d.line((x+dx*.2,y+dy*.2,ex,ey),fill=(224,216,164,210),width=1)
- name=ImageFont.truetype(SANS,27,index=1);role=ImageFont.truetype(SANS,20)
- for y,s,font in [(300,'Elizabeth Rueda',name),(324,'Fundadora de Izamaíz',role)]:
-  d.text((330,y),s,font=font,fill=WHITE,anchor='ls',stroke_width=1,stroke_fill=(39,48,39,130))
+  d.polygon(pts,fill=(245,198,210,255))
+  d.line((x+dx*.2,y+dy*.2,ex,ey),fill=(185,112,134,210),width=1)
+ name=ImageFont.truetype(SANS,30,index=1);role=ImageFont.truetype(SANS,24,index=1)
+ lines=[(300,'Elizabeth Rueda',name),(328,'Fundadora de Izamaíz',role)]
+ shadow=Image.new('RGBA',(W,H));sd=ImageDraw.Draw(shadow)
+ for y,s,font in lines:sd.text((330,y+1),s,font=font,fill=(15,24,22,205),anchor='ls',stroke_width=3,stroke_fill=(15,24,22,170))
+ shadow=shadow.filter(ImageFilter.GaussianBlur(4));layer.alpha_composite(shadow)
+ d=ImageDraw.Draw(layer)
+ for y,s,font in lines:d.text((330,y),s,font=font,fill=(255,252,245,255),anchor='ls',stroke_width=1,stroke_fill=(29,39,34,125))
  layer.putalpha(layer.getchannel('A').point(lambda a:int(a*alpha)));c.alpha_composite(layer)
 
 def harvest_overlay(t,alpha=1):
