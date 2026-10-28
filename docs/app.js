@@ -32,3 +32,27 @@ video.addEventListener('ended',()=>background.pause());
 video.addEventListener('seeking',()=>syncBackground(true));
 video.addEventListener('timeupdate',()=>syncBackground());
 if(!video.paused)background.play().catch(()=>{});
+
+// Safari's chrome tint follows the current scene instead of staying green.
+const sceneCanvas=document.createElement('canvas');sceneCanvas.width=36;sceneCanvas.height=78;
+const sceneContext=sceneCanvas.getContext('2d',{willReadFrequently:true});
+const browserTheme=document.querySelector('meta[name="theme-color"]');
+let lastScenePaint=-Infinity;
+function paintSurroundings(force=false){
+ if(!force&&Math.abs(video.currentTime-lastScenePaint)<.3)return;
+ if(background.readyState<2||!sceneContext)return;
+ lastScenePaint=video.currentTime;
+ try{
+  sceneContext.drawImage(background,0,0,36,78);
+  const pixels=sceneContext.getImageData(0,0,36,78).data;let red=0,green=0,blue=0,count=0;
+  for(let i=0;i<pixels.length;i+=4){red+=pixels[i];green+=pixels[i+1];blue+=pixels[i+2];count++;}
+  const color=video.currentTime>=54.1?'#631730':`rgb(${Math.round(red/count)},${Math.round(green/count)},${Math.round(blue/count)})`;
+  document.documentElement.style.setProperty('--scene-color',color);
+  document.documentElement.style.setProperty('--scene-image',`url("${sceneCanvas.toDataURL('image/jpeg',.8)}")`);
+  browserTheme.setAttribute('content',color);
+ }catch(error){/* Video keeps playing if an older browser cannot sample the background. */}
+}
+background.addEventListener('loadeddata',()=>paintSurroundings(true));
+background.addEventListener('seeked',()=>paintSurroundings(true));
+video.addEventListener('timeupdate',()=>paintSurroundings());
+video.addEventListener('ended',()=>paintSurroundings(true));
