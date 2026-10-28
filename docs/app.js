@@ -1,4 +1,5 @@
 const video=document.querySelector('#journey');
+const background=document.querySelector('#ambient-background');
 const toggle=document.querySelector('#menu-toggle'),menu=document.querySelector('#menu');
 const subtitles=document.querySelector('#subtitles'),box=document.querySelector('#subtitle');
 let captionsOn=false,cues=[],awaitingAudioGesture=false;
@@ -20,3 +21,14 @@ video.muted=false;video.volume=1;
 if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){video.autoplay=false;video.pause();}else{
 video.play().catch(error=>{if(error.name!=='NotAllowedError')return;awaitingAudioGesture=true;video.pause();video.currentTime=0;});
 }
+
+// Keep the background-only extension on the same scene and time as the full composition.
+function syncBackground(force=false){if(background.readyState<1)return;if(force||Math.abs(background.currentTime-video.currentTime)>.15)background.currentTime=video.currentTime;}
+background.muted=true;
+background.addEventListener('loadedmetadata',()=>syncBackground(true));
+video.addEventListener('play',()=>{syncBackground(true);background.play().catch(()=>{});});
+video.addEventListener('pause',()=>background.pause());
+video.addEventListener('ended',()=>background.pause());
+video.addEventListener('seeking',()=>syncBackground(true));
+video.addEventListener('timeupdate',()=>syncBackground());
+if(!video.paused)background.play().catch(()=>{});
