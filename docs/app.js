@@ -12,35 +12,48 @@ function renderCaption(){let cue=cues.find(c=>video.currentTime>=c.start&&video.
 subtitles.addEventListener('click',()=>{captionsOn=!captionsOn;subtitles.setAttribute('aria-pressed',String(captionsOn));renderCaption();});
 const track=video.textTracks[0];if(track){track.mode='hidden';track.addEventListener('cuechange',renderCaption);}
 video.addEventListener('timeupdate',renderCaption);video.addEventListener('seeked',renderCaption);
-let playAttempt=0,hasStarted=false,lastStartGesture=-Infinity;
-function startVideo(fromGesture=false){
- const attempt=++playAttempt;
- video.muted=false;video.defaultMuted=false;video.volume=1;
- if(fromGesture)lastStartGesture=performance.now();
- try{
-  const result=video.play();
-  if(result&&typeof result.catch==='function')result.catch(error=>{
-   if(attempt!==playAttempt||!video.paused)return;
-   awaitingAudioGesture=true;
-   video.dataset.playback=error.name==='NotAllowedError'?'waiting-for-touch':'waiting';
-  });
- }catch(error){awaitingAudioGesture=true;}
+let playAttempt=0,wantPlaying=true,awaitingSound=false,lastStartGesture=-Infinity;
+function requestPlayback(fromGesture=false){
+ const attempt=++playAttempt;wantPlaying=true;
+ if(fromGesture){lastStartGesture=performance.now();video.muted=false;awaitingSound=false;}
+ video.volume=1;
+ let result;
+ try{result=video.play();}catch(error){video.controls=true;return;}
+ if(!result||typeof result.catch!=='function')return;
+ result.catch(error=>{
+  if(attempt!==playAttempt||!wantPlaying||!video.paused)return;
+  if(error.name==='NotAllowedError'&&!fromGesture&&!video.muted){
+   // iOS normally allows muted automatic playback, then sound on the first touch.
+   video.muted=true;awaitingSound=true;
+   video.play().catch(()=>{if(attempt===playAttempt&&video.paused)video.controls=true;});
+  }else if(error.name==='NotAllowedError'){
+   awaitingSound=true;video.controls=true;
+  }else if(error.name!=='AbortError')video.controls=true;
+ });
 }
-video.addEventListener('playing',()=>{hasStarted=true;awaitingAudioGesture=false;video.dataset.playback='playing';});
+function startVideo(fromGesture=false){requestPlayback(fromGesture);}
+video.addEventListener('playing',()=>{video.dataset.playback='playing';video.controls=false;});
 function playback(){
  if(performance.now()-lastStartGesture<650)return;
- if(video.paused||awaitingAudioGesture)startVideo(true);else video.pause();
+ if(awaitingSound||video.paused)requestPlayback(true);
+ else{wantPlaying=false;++playAttempt;video.pause();}
 }
 video.addEventListener('click',playback);
 video.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();playback();}});
-// Start within the trusted touch itself; never pause/reset after an autoplay rejection.
-function touchStart(){if(video.paused&&(!hasStarted||awaitingAudioGesture))startVideo(true);}
-if('PointerEvent' in window)document.addEventListener('pointerup',touchStart,{capture:true,passive:true});
-else document.addEventListener('touchend',touchStart,{capture:true,passive:true});
-document.addEventListener('click',()=>{if(video.paused&&(!hasStarted||awaitingAudioGesture))startVideo(true);});
-video.addEventListener('canplay',()=>{if(!hasStarted&&!awaitingAudioGesture)startVideo();});
-window.addEventListener('pageshow',()=>{if(!hasStarted)startVideo();});
-startVideo();
+function unlockPlayback(){
+ if(awaitingSound||(wantPlaying&&video.paused))requestPlayback(true);
+}
+if('PointerEvent' in window)document.addEventListener('pointerup',unlockPlayback,{capture:true,passive:true});
+else document.addEventListener('touchend',unlockPlayback,{capture:true,passive:true});
+document.addEventListener('click',e=>{if(!e.target.closest('#journey'))unlockPlayback();});
+function resumePlayback(){if(wantPlaying&&video.paused&&!document.hidden)requestPlayback();}
+video.addEventListener('canplay',resumePlayback);
+window.addEventListener('pageshow',resumePlayback);
+window.addEventListener('online',resumePlayback);
+document.addEventListener('visibilitychange',resumePlayback);
+video.addEventListener('error',()=>{video.controls=true;});
+video.muted=false;
+requestPlayback();
 
 // Match the actual video borders with smoothly changing surrounding colors.
 const edgeCanvas=document.createElement('canvas');edgeCanvas.width=36;edgeCanvas.height=64;
