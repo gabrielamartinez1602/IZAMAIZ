@@ -4,7 +4,7 @@ import math, random, subprocess, json, sys
 import numpy as np
 
 R=Path(__file__).resolve().parents[1]
-D=R/'work/revision-20'; V=R/'work/revision-06'; B=R/'work/revision-03'; O=R/'outputs'; A=R/'source-assets'
+D=R/'work/revision-21'; V=R/'work/revision-06'; B=R/'work/revision-03'; O=R/'outputs'; A=R/'source-assets'
 W,H,FPS=720,1280,30; C=(W/2,H/2)
 INK=(99,23,48); CREAM=(245,237,218); WHITE=(255,249,235); PINK=(202,116,137)
 import os, shutil
@@ -183,6 +183,16 @@ def formulation(c,t):
    c.alpha_composite(layer)
 
 
+assets['mortar']=load('molcajete.png');assets['pestle']=load('tejolote.png')
+
+def mortar(c,x,y,width,t=0,angle=0,alpha=1,pestle=True):
+ scale=width/545
+ sticker(c,'mortar',x,y,width=width,angle=angle,alpha=alpha,shadow=True)
+ if pestle:
+  activity=ramp(t,1.5,2.2)
+  dx=math.sin(t*6)*13*activity;dy=math.cos(t*6)*8*activity
+  sticker(c,'pestle',x+(35+dx)*scale,y+(-180+dy)*scale,height=225*scale,angle=-18+math.sin(t*6)*7*activity+angle,alpha=alpha)
+
 static=[]
 for n in range(7):
  c=Image.new('RGBA',(W,H))
@@ -197,7 +207,7 @@ for n in range(7):
   sticker(c,'clothRed',400,1040,width=1010,angle=-10)
   sticker(c,'inkCorn',100,655,height=420,angle=16)
   vessel_leaf(c,'pot',415,756,545)
-  sticker(c,'pot',415,756,width=545,angle=-4,shadow=True)
+
  elif n==3:
   sticker(c,'clothPink',390,1030,width=1020,angle=-12)
   sticker(c,'inkGrains',360,458,width=190,angle=-9)
@@ -234,13 +244,13 @@ def artwork(n,t,zoom=1,pan=0):
  if n==4:
   formulation(art,t)
  elif n==2:
-  # Kernels move as individual cutouts; liquid remains a still photograph.
-  for k in range(5):
-   phase=(t*.46+k*.23)%1
-   sticker(art,'semillas2.png',220+k*66,435+phase*220,width=26,angle=k*32+phase*55,alpha=.9)
-  sticker(art,'inkSteam',375,485-(t*.24%1)*55,height=145,alpha=.85)
+  mortar(art,415,756,545,t)
+  for k in range(9):
+   phase=(t-k*.17)/1.3
+   if 0<phase<1:
+    sticker(art,'inkGrains',270+k%4*62,lerp(380,650,phase),width=37,angle=k*31+phase*28,alpha=ramp(phase,0,.12)*(1-ramp(phase,.85,1)))
  elif n==3:
-  for k in range(4):sticker(art,'semillas2.png',195+k*110,430+math.sin(t*.9+k)*9,width=26,angle=k*47)
+  pass
  elif n==6:
   q=ramp(t,.5,3.0)
   # The husk slides over the soap, then the wrapped product rests in the hands.
@@ -320,7 +330,7 @@ def maize_overlay(alpha=1):
  p=solid_paper((W+30,280));p.putalpha(paper_mask(p.size,17));p=p.rotate(-1,Image.Resampling.BICUBIC,expand=True)
  c.alpha_composite(p,(-15,1009))
  regular=ImageFont.truetype(SANS,31);bold=ImageFont.truetype(SANS,35,index=1)
- lines=[('El maíz rosado inicia una nueva etapa:',regular),('la nixtamalización.',bold),('Del grano preparado al ingrediente',regular),('que incorporamos en tu jabón.',regular)]
+ lines=[('El maíz rosado contiene',regular),('antocianinas y antioxidantes naturales.',ImageFont.truetype(SANS,32,index=1)),('Un ingrediente que se transforma',regular),('para formar parte de tu jabón.',regular)]
  for i,(s,font) in enumerate(lines):
   left_text(d,44,1041+i*46,s,font,INK)
  if alpha<.999:c.putalpha(c.getchannel('A').point(lambda a:int(a*max(0,alpha))))
@@ -397,21 +407,30 @@ def transitional(n,p,t):
   sticker(c,'basketFilled',lerp(360,-340,q),lerp(851,1020,q),width=lerp(520,430,q),angle=lerp(3,-15,q))
   sticker(c,'inkCorn',100,655,height=420,angle=16,alpha=ramp(p,.25,.8))
   vessel_leaf(c,'pot',lerp(1100,415,q),lerp(850,756,q),545)
-  sticker(c,'pot',lerp(1100,415,q),lerp(850,756,q),width=545,angle=-4,shadow=True)
+  mortar(c,lerp(1100,415,q),lerp(850,756,q),545,0)
   for k in range(4):
    g=(p-.14-k*.07)/.52
    if 0<g<1:sticker(c,'inkGrains',lerp(345,415,g),lerp(720,650,g)-math.sin(math.pi*g)*185,width=65,angle=lerp(-25,45,g))
  elif n==2:
-  # Prepared maize leads to the ingredient: the vessels keep their real silhouettes.
   sticker(c,'clothRed',400-400*q,1040,width=1010,angle=-10,alpha=1-q)
   sticker(c,'clothPink',390+450*(1-q),1030,width=1020,angle=-12,alpha=q)
   sticker(c,'inkCorn',100-330*q,655,height=420,angle=16,alpha=1-q)
-  vessel_leaf(c,'pot',lerp(415,-440,q),lerp(756,1250,q),545)
-  sticker(c,'pot',lerp(415,-440,q),lerp(756,1250,q),width=545,angle=lerp(-4,12,q))
-  vessel_leaf(c,'bowl',lerp(1100,360,q),752,545)
-  sticker(c,'bowl',lerp(1100,360,q),752,width=545,angle=-5,shadow=True)
-  sticker(c,'inkGrains',lerp(415,360,q),lerp(600,458,q),width=lerp(90,190,q),angle=-9)
-  sticker(c,'inkSteam',375,lerp(480,170,q),height=145,alpha=1-ramp(p,.15,.65))
+  arrive=ramp(p,0,.55);bx=lerp(1100,360,arrive);by=lerp(870,752,arrive)
+  vessel_leaf(c,'bowl',bx,by,545)
+  sticker(c,'bowl',bx,by,width=545,angle=-5,shadow=True)
+  lift=ramp(p,0,.40);depart=ramp(p,.65,1)
+  mx=lerp(415,190,lift)-650*depart;my=lerp(756,485,lift)-180*depart;mw=lerp(545,390,lift)
+  mortar(c,mx,my,mw,5.5,angle=lerp(0,-28,lift),alpha=1-depart,pestle=False)
+  flow=ramp(p,.30,.42)*(1-ramp(p,.73,.85))
+  if flow>0:
+   layer=Image.new('RGBA',(W,H));d=ImageDraw.Draw(layer)
+   sx=mx+mw*.36;sy=my+mw*.05;tx=bx-15;ty=by-82
+   for k in range(150):
+    v=(p*3.4+k*.047)%1;spread=3+11*v;rx=math.sin(k*15.53)*spread
+    xx=lerp(sx,tx,v)+rx;yy=lerp(sy,ty,v)+math.sin(k*3.2)*4
+    rr=1.1+(k%4)*.45
+    d.ellipse((xx-rr,yy-rr,xx+rr,yy+rr),fill=(244-k%13,187+k%20,195+k%22,round(235*flow)))
+   c.alpha_composite(layer)
  elif n==3:
   # The very same bowl moves beside the mixer and the mold.
   sticker(c,'clothPink',390-500*q,1030,width=1020,angle=-12,alpha=1-q)

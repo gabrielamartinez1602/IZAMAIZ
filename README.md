@@ -1,6 +1,6 @@
 # IZAMAIZ · El viaje del maíz
 
-Primera página del proyecto: reproduce la versión 20 aprobada del recorrido, con la música Jaroeno Calma, composición vertical y recursos originales. Es una reproducción del video; la navegación interactiva por escenas queda pendiente de implementación.
+Primera página del proyecto: reproduce la versión 21 aprobada del recorrido, con la música Jaroeno Calma, composición vertical y recursos originales. Es una reproducción del video; la navegación interactiva por escenas queda pendiente de implementación.
 
 ## Estructura
 
