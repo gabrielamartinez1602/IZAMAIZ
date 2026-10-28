@@ -1,5 +1,4 @@
 const video=document.querySelector('#journey');
-const background=document.querySelector('#ambient-background');
 const toggle=document.querySelector('#menu-toggle'),menu=document.querySelector('#menu');
 const subtitles=document.querySelector('#subtitles'),box=document.querySelector('#subtitle');
 let captionsOn=false,cues=[],awaitingAudioGesture=false;
@@ -8,30 +7,40 @@ function menuState(open){menu.hidden=!open;toggle.setAttribute('aria-expanded',S
 toggle.addEventListener('click',()=>menuState(menu.hidden));
 document.addEventListener('click',e=>{if(!e.target.closest('.menu-wrap'))menuState(false);});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){menuState(false);toggle.focus();}});
-document.querySelector('#restart').addEventListener('click',()=>{video.currentTime=0;renderCaption();video.play().catch(()=>{});menuState(false);});
+document.querySelector('#restart').addEventListener('click',()=>{video.currentTime=0;renderCaption();startVideo(true);menuState(false);});
 function renderCaption(){let cue=cues.find(c=>video.currentTime>=c.start&&video.currentTime<c.end);if(!cue&&video.textTracks[0]?.activeCues?.length)cue=video.textTracks[0].activeCues[0];box.hidden=!captionsOn||!cue;box.querySelector('span').textContent=cue?.text||'';}
 subtitles.addEventListener('click',()=>{captionsOn=!captionsOn;subtitles.setAttribute('aria-pressed',String(captionsOn));renderCaption();});
 const track=video.textTracks[0];if(track){track.mode='hidden';track.addEventListener('cuechange',renderCaption);}
 video.addEventListener('timeupdate',renderCaption);video.addEventListener('seeked',renderCaption);
-function playback(){if(awaitingAudioGesture){activateAudio();return;}if(video.paused)video.play().catch(()=>{});else video.pause();}
-video.addEventListener('click',playback);video.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();playback();}});
-function activateAudio(){awaitingAudioGesture=false;video.muted=false;video.volume=1;video.play().catch(()=>{});}
-document.addEventListener('click',e=>{if(awaitingAudioGesture&&!e.target.closest('#journey'))activateAudio();});
-video.muted=false;video.volume=1;
-if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){video.autoplay=false;video.pause();}else{
-video.play().catch(error=>{if(error.name!=='NotAllowedError')return;awaitingAudioGesture=true;video.pause();video.currentTime=0;});
+let playAttempt=0,hasStarted=false,lastStartGesture=-Infinity;
+function startVideo(fromGesture=false){
+ const attempt=++playAttempt;
+ video.muted=false;video.defaultMuted=false;video.volume=1;
+ if(fromGesture)lastStartGesture=performance.now();
+ try{
+  const result=video.play();
+  if(result&&typeof result.catch==='function')result.catch(error=>{
+   if(attempt!==playAttempt||!video.paused)return;
+   awaitingAudioGesture=true;
+   video.dataset.playback=error.name==='NotAllowedError'?'waiting-for-touch':'waiting';
+  });
+ }catch(error){awaitingAudioGesture=true;}
 }
-
-// Keep the background-only extension on the same scene and time as the full composition.
-function syncBackground(force=false){if(background.readyState<1)return;if(force||Math.abs(background.currentTime-video.currentTime)>.15)background.currentTime=video.currentTime;}
-background.muted=true;
-background.addEventListener('loadedmetadata',()=>syncBackground(true));
-video.addEventListener('play',()=>{syncBackground(true);background.play().catch(()=>{});});
-video.addEventListener('pause',()=>background.pause());
-video.addEventListener('ended',()=>background.pause());
-video.addEventListener('seeking',()=>syncBackground(true));
-video.addEventListener('timeupdate',()=>syncBackground());
-if(!video.paused)background.play().catch(()=>{});
+video.addEventListener('playing',()=>{hasStarted=true;awaitingAudioGesture=false;video.dataset.playback='playing';});
+function playback(){
+ if(performance.now()-lastStartGesture<650)return;
+ if(video.paused||awaitingAudioGesture)startVideo(true);else video.pause();
+}
+video.addEventListener('click',playback);
+video.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();playback();}});
+// Start within the trusted touch itself; never pause/reset after an autoplay rejection.
+function touchStart(){if(video.paused&&(!hasStarted||awaitingAudioGesture))startVideo(true);}
+if('PointerEvent' in window)document.addEventListener('pointerup',touchStart,{capture:true,passive:true});
+else document.addEventListener('touchend',touchStart,{capture:true,passive:true});
+document.addEventListener('click',()=>{if(video.paused&&(!hasStarted||awaitingAudioGesture))startVideo(true);});
+video.addEventListener('canplay',()=>{if(!hasStarted&&!awaitingAudioGesture)startVideo();});
+window.addEventListener('pageshow',()=>{if(!hasStarted)startVideo();});
+startVideo();
 
 // Match the actual video borders with smoothly changing surrounding colors.
 const edgeCanvas=document.createElement('canvas');edgeCanvas.width=36;edgeCanvas.height=64;
