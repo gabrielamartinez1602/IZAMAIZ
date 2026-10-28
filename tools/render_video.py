@@ -68,7 +68,7 @@ assets['clothRed']=photo('textileschiapas2.jpg',(900,410),8)
 assets['clothPink']=photo('textileschiapas3.jpeg',(850,410),12)
 assets['clothGold']=photo('textilesmichoacan.jpg',(650,650),14)
 assets['clothStripe']=photo('textilesoaxaca2.jpg',(950,420),16,box=(160,370,1760,940))
-assets['huskWall']=load('hojasdemaiz.png')
+assets['huskWall']=load('huskWall.png')
 
 cache={}
 def sticker(c,name,x,y,width=None,height=None,angle=0,alpha=1,flip=False,shadow=False):
@@ -93,12 +93,15 @@ def solid_paper(size,color=CREAM,seed=0):
  n=Image.effect_noise(size,7).convert('RGB');im=Image.blend(Image.new('RGB',size,color),n,.035).convert('RGBA');return im
 
 def bgphoto(name,tint=None,amount=0):
+ if not (A/name).exists():
+  fallback={'campo2.png':'fondo_1.png','maizpolvo4.JPG':'fondo_3.png'}
+  return Image.open(A/fallback[name]).convert('RGBA')
  im=ImageOps.fit(Image.open(A/name).convert('RGB'),(W,H),Image.Resampling.LANCZOS)
  if tint:im=Image.blend(im,Image.new('RGB',(W,H),tint),amount)
  return im.convert('RGBA')
 backgrounds=[bgphoto('maizales.jpg',(21,36,21),.20),bgphoto('campo2.png',(29,35,27),.24),solid_paper((W,H)),bgphoto('maizpolvo4.JPG',CREAM,.64),bgphoto('textilesmichoacan.jpg',CREAM,.10),solid_paper((W,H)),bgphoto('textileschiapas3.jpeg',(92,23,51),.23)]
 # Readable upper atmosphere over photographic backgrounds.
-for idx in [0,1,6]:
+for idx in [0,6]:
  ar=np.zeros((H,W,4),dtype=np.uint8);ar[:,:,:3]=[22,19,12]
  for y in range(H):ar[y,:,3]=round(max(0,1-y/620)*135)
  backgrounds[idx].alpha_composite(Image.fromarray(ar))
