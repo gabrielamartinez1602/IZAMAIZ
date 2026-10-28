@@ -4,7 +4,7 @@ import math, random, subprocess, json, sys
 import numpy as np
 
 R=Path(__file__).resolve().parents[1]
-D=R/'work/revision-23'; V=R/'work/revision-06'; B=R/'work/revision-03'; O=R/'outputs'; A=R/'source-assets'
+D=R/'work/revision-24'; V=R/'work/revision-06'; B=R/'work/revision-03'; O=R/'outputs'; A=R/'source-assets'
 W,H,FPS=720,1280,30; C=(W/2,H/2)
 INK=(99,23,48); CREAM=(245,237,218); WHITE=(255,249,235); PINK=(202,116,137)
 import os, shutil
@@ -147,18 +147,16 @@ def cold_label(c,alpha=1):
  d.text((286,280),'Refrigeración',font=fonts['body'],fill=INK)
  if alpha<1:layer.putalpha(layer.getchannel('A').point(lambda a:int(a*alpha)))
  c.alpha_composite(layer)
-def formulation(c,t):
+def base_formulation(c,t):
  # Mix, then lift the mixer away and pour into each cavity, then cool the filled mold.
- leave=ramp(t,1.05,1.65)
+ leave=ramp(t,0,.65)
  if leave<1:
-  sticker(c,'batidora.png',192-370*leave,650-220*leave,height=425,angle=5+math.sin(t*30)*.65*(1-leave),alpha=1-leave)
-  vessel_leaf(c,'bowl',195-350*leave,973+200*leave,320,1-leave)
-  sticker(c,'bowl',195-350*leave,973+200*leave,width=320,angle=9,alpha=1-leave)
+  sticker(c,'batidora.png',360-650*leave,730-220*leave,height=480,angle=math.sin(t*30)*.65*(1-leave),alpha=1-leave)
  cooling=ramp(t,4.6,5.65)
  center=ramp(t,.45,1.6)
  mx=lerp(lerp(445,360,center),380,cooling);my=lerp(760,710,cooling);mh=lerp(440,550,cooling);ma=lerp(0,9,center)
  a=max(0,min(1,(t-1.7)/2.8));amounts=[ramp(a*5-k,.12,.8) for k in range(5)]
- place_mold(c,amounts,mx,my,mh,ma)
+ place_mold(c,amounts,mx,my,mh,ma,alpha=ramp(t,0,.9))
  if 1.15<t<4.95:
   index=min(4,int(a*5));within=a*5-index
   yy=SLOTS[index]
@@ -182,6 +180,34 @@ def formulation(c,t):
    d.ellipse((ex-12,ey-4,ex+12,ey+4),fill=(239,180,193,round(230*flow)))
    c.alpha_composite(layer)
 
+
+def powder_fall(c,sx,sy,tx,ty,time,alpha=1):
+ layer=Image.new('RGBA',(W,H));d=ImageDraw.Draw(layer)
+ for k in range(150):
+  v=(time*1.8+k*.047)%1;xx=lerp(sx,tx,v)+math.sin(k*13.5)*(4+v*9);yy=lerp(sy,ty,v)
+  rr=1.2+(k%4)*.45
+  d.ellipse((xx-rr,yy-rr,xx+rr,yy+rr),fill=(245-k%12,190+k%16,200+k%18,round(230*alpha)))
+ c.alpha_composite(layer)
+
+def centered_mixer(c,t,alpha=1):
+ activity=ramp(t,.7,1.3)
+ sticker(c,'batidora.png',360+math.sin(t*24)*1.2*activity,730,height=480,angle=math.sin(t*24)*.38*activity,alpha=alpha,shadow=True)
+ # Two subtle circular marks at the beaters make the mixing motion legible.
+ if activity>0:
+  layer=Image.new('RGBA',(W,H));d=ImageDraw.Draw(layer)
+  for j in range(2):
+   angle=t*210+j*180
+   d.arc((335-j*10,793-j*3,383+j*10,809+j*3),angle,angle+110,fill=(250,214,221,round(190*activity*alpha)),width=2)
+  c.alpha_composite(layer)
+
+def formulation(c,t):
+ if t<2.5:
+  centered_mixer(c,t)
+  alpha=1-ramp(t,.65,1.3)
+  if alpha>0:
+   sticker(c,'bowl',160,480,width=260,angle=-28,alpha=alpha)
+   powder_fall(c,264,530,235,796,t+.8,alpha)
+ else:base_formulation(c,t-2.5)
 
 assets['mortar']=load('molcajete.png');assets['pestle']=load('tejolote.png')
 
@@ -210,7 +236,6 @@ for n in range(7):
 
  elif n==3:
   sticker(c,'clothPink',390,1030,width=1020,angle=-12)
-  sticker(c,'inkGrains',360,458,width=190,angle=-9)
   vessel_leaf(c,'bowl',360,752,545)
   sticker(c,'bowl',360,752,width=545,angle=-5,shadow=True)
  elif n==4:
@@ -245,10 +270,8 @@ def artwork(n,t,zoom=1,pan=0):
   formulation(art,t)
  elif n==2:
   mortar(art,415,756,545,t)
-  for k in range(9):
-   phase=(t-k*.17)/1.3
-   if 0<phase<1:
-    sticker(art,'inkGrains',270+k%4*62,lerp(380,650,phase),width=37,angle=k*31+phase*28,alpha=ramp(phase,0,.12)*(1-ramp(phase,.85,1)))
+  phase=min(1,t/1.65)
+  if phase<1:sticker(art,'inkGrains',360,lerp(360,650,phase),width=190,angle=-9+phase*12,alpha=1-ramp(phase,.82,1))
  elif n==3:
   pass
  elif n==6:
@@ -412,9 +435,8 @@ def transitional(n,p,t):
   sticker(c,'inkCorn',100,655,height=420,angle=16,alpha=ramp(p,.25,.8))
   vessel_leaf(c,'pot',lerp(1100,415,q),lerp(850,756,q),545)
   mortar(c,lerp(1100,415,q),lerp(850,756,q),545,0)
-  for k in range(4):
-   g=(p-.14-k*.07)/.52
-   if 0<g<1:sticker(c,'inkGrains',lerp(345,415,g),lerp(720,650,g)-math.sin(math.pi*g)*185,width=65,angle=lerp(-25,45,g))
+  seed=ramp(p,.76,1)
+  sticker(c,'inkGrains',415,lerp(290,360,seed),width=190,angle=-9,alpha=seed)
  elif n==2:
   sticker(c,'clothRed',400-400*q,1040,width=1010,angle=-10,alpha=1-q)
   sticker(c,'clothPink',390+450*(1-q),1030,width=1020,angle=-12,alpha=q)
@@ -436,14 +458,15 @@ def transitional(n,p,t):
     d.ellipse((xx-rr,yy-rr,xx+rr,yy+rr),fill=(244-k%13,187+k%20,195+k%22,round(235*flow)))
    c.alpha_composite(layer)
  elif n==3:
-  # The very same bowl moves beside the mixer and the mold.
   sticker(c,'clothPink',390-500*q,1030,width=1020,angle=-12,alpha=1-q)
   sticker(c,'clothRed',440,lerp(1360,1035,q),width=1020,angle=10,alpha=q)
-  sticker(c,'inkGrains',lerp(360,370,q),lerp(458,400,q),width=lerp(190,135,q),angle=lerp(-9,20,q),alpha=1-q)
-  sticker(c,'batidora.png',lerp(-350,192,q),lerp(530,650,q),height=425,angle=lerp(-15,5,q),shadow=True)
-  sticker(c,'molde.png',lerp(1100,500,q),760,height=440,angle=lerp(15,0,q),shadow=True)
-  vessel_leaf(c,'bowl',lerp(360,195,q),lerp(752,973,q),lerp(545,320,q))
-  sticker(c,'bowl',lerp(360,195,q),lerp(752,973,q),width=lerp(545,320,q),angle=lerp(-5,9,q),shadow=True)
+  arrive=ramp(p,0,.55)
+  sticker(c,'batidora.png',lerp(1050,360,arrive),730,height=480,angle=0,alpha=arrive,shadow=True)
+  lift=ramp(p,0,.55);bx=lerp(360,160,lift);by=lerp(752,480,lift);bw=lerp(545,260,lift)
+  vessel_leaf(c,'bowl',bx,by,bw,1-ramp(p,0,.4))
+  sticker(c,'bowl',bx,by,width=bw,angle=lerp(-5,-28,lift),shadow=True)
+  flow=ramp(p,.48,.65)
+  if flow>0:powder_fall(c,bx+bw*.40,by+50,235,796,p*2,flow)
  elif n==4:
   sticker(c,'clothRed',440+500*q,1035,width=1020,angle=10,alpha=1-q)
   sticker(c,'clothPink',-185,630,width=860,angle=70,alpha=q)
@@ -465,7 +488,7 @@ def transitional(n,p,t):
  if p>.92:c=Image.blend(c,artwork(nn,0,1,0),ramp(p,.92,1))
  return c
 
-HOLDS=[3.5,9.2,5.5,5.0,7.0,8.0,7.0]
+HOLDS=[3.5,9.2,5.5,5.0,9.5,8.0,7.0]
 TRANSITIONS=[2.8,2.6,2.6,2.6,2.6,2.6,0]
 STARTS=[];clock=0
 for hold,tr in zip(HOLDS,TRANSITIONS):STARTS.append(clock);clock+=hold+tr
@@ -503,7 +526,7 @@ def frame(t):
   c.alpha_composite(text_overlay(n,local,1-ramp(p,0,.26)))
   c.alpha_composite(text_overlay(n+1,0,ramp(p,.64,.98)))
  if n==4:
-  if local<=hold and local>=4.6:cold_label(c,ramp(local,4.6,5.3))
+  if local<=hold and local>=7.1:cold_label(c,ramp(local,7.1,7.8))
   elif local>hold:cold_label(c,1-ramp((local-hold)/TRANSITIONS[n],0,.25))
  dark=n in [0,1,6]
  if local>hold and n<6:
