@@ -4,7 +4,7 @@ import math, random, subprocess, json, sys
 import numpy as np
 
 R=Path(__file__).resolve().parents[1]
-D=R/'work/revision-19'; V=R/'work/revision-06'; B=R/'work/revision-03'; O=R/'outputs'; A=R/'source-assets'
+D=R/'work/revision-20'; V=R/'work/revision-06'; B=R/'work/revision-03'; O=R/'outputs'; A=R/'source-assets'
 W,H,FPS=720,1280,30; C=(W/2,H/2)
 INK=(99,23,48); CREAM=(245,237,218); WHITE=(255,249,235); PINK=(202,116,137)
 import os, shutil
@@ -100,6 +100,7 @@ def bgphoto(name,tint=None,amount=0):
  if tint:im=Image.blend(im,Image.new('RGB',(W,H),tint),amount)
  return im.convert('RGBA')
 backgrounds=[bgphoto('maizales.jpg',(21,36,21),.20),bgphoto('campo2.png',(29,35,27),.24),solid_paper((W,H)),bgphoto('maizpolvo4.JPG',CREAM,.64),bgphoto('textilesmichoacan.jpg',CREAM,.10),solid_paper((W,H)),bgphoto('textileschiapas3.jpeg',(92,23,51),.23)]
+backgrounds[2]=backgrounds[3].copy()
 # Readable upper atmosphere over photographic backgrounds.
 for idx in [0,6]:
  ar=np.zeros((H,W,4),dtype=np.uint8);ar[:,:,:3]=[22,19,12]
@@ -112,7 +113,7 @@ bb=leaf.getchannel('A').point(lambda a:255 if a>20 else 0).getbbox();assets['lea
 def vessel_leaf(c,kind,x,y,width,alpha=1):
  scale=width/545
  offset=140 if kind=='pot' else 195
- sticker(c,'leafRestored',x+offset*scale,y-165*scale,height=460*scale,angle=18,alpha=alpha)
+ sticker(c,'leafRestored',x+offset*scale,y-(205 if kind=='pot' else 165)*scale,height=(570 if kind=='pot' else 460)*scale,angle=18,alpha=alpha)
 
 def clean_asset(path):
  im=Image.open(path).convert('RGBA');bb=im.getchannel('A').point(lambda a:255 if a>20 else 0).getbbox();return im.crop(bb)
@@ -309,9 +310,26 @@ def harvest_overlay(t,alpha=1):
  if alpha<.999:c.putalpha(c.getchannel('A').point(lambda a:int(a*max(0,alpha))))
  return c
 
+def maize_overlay(alpha=1):
+ c=Image.new('RGBA',(W,H));d=ImageDraw.Draw(c)
+ small=ImageFont.truetype(FONT,43);large=ImageFont.truetype(BOLD,76)
+ for y,parts in [(157,[('El ',small),('Maíz',large)]),(236,[('se ',small),('Transforma',large)])]:
+  x=44
+  for s,font in parts:
+   d.text((x,y),s,font=font,fill=INK,anchor='ls');x+=d.textlength(s,font=font)
+ p=solid_paper((W+30,280));p.putalpha(paper_mask(p.size,17));p=p.rotate(-1,Image.Resampling.BICUBIC,expand=True)
+ c.alpha_composite(p,(-15,1009))
+ regular=ImageFont.truetype(SANS,31);bold=ImageFont.truetype(SANS,35,index=1)
+ lines=[('El maíz rosado inicia una nueva etapa:',regular),('la nixtamalización.',bold),('Del grano preparado al ingrediente',regular),('que incorporamos en tu jabón.',regular)]
+ for i,(s,font) in enumerate(lines):
+  left_text(d,44,1041+i*46,s,font,INK)
+ if alpha<.999:c.putalpha(c.getchannel('A').point(lambda a:int(a*max(0,alpha))))
+ return c
+
 # Descriptive typography belongs to the resting scene and clears before the dive.
 def text_overlay(n,t,alpha=1):
  if n==1:return harvest_overlay(t,alpha)
+ if n==2:return maize_overlay(alpha)
  c=Image.new('RGBA',(W,H));d=ImageDraw.Draw(c)
  dark=n in [2,3,4,5];ink=INK if dark else WHITE
  if n==4:
