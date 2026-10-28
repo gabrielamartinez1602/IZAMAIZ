@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5edda">
+  <meta name="description" content="El viaje del maíz: conoce a las personas y las transformaciones detrás de IZAMAIZ.">
+  <title>IZAMAIZ · El viaje del maíz</title>
+  <link rel="icon" href="assets/logo-original.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main aria-label="El viaje del maíz de IZAMAIZ">
+    <div class="experience">
+      <video id="journey" autoplay muted playsinline loop preload="metadata" poster="assets/portada.jpg" aria-label="Recorrido de IZAMAIZ: origen en Tlaxcala, Elizabeth Rueda y artesanas, preparación del maíz, elaboración del jabón, propiedades y empaque.">
+        <source src="assets/recorrido-izamaiz.mp4" type="video/mp4">
+        Tu navegador no puede reproducir el video. <a href="assets/recorrido-izamaiz.mp4">Ver el recorrido</a>.
+      </video>
+      <div class="controls" aria-label="Controles del recorrido">
+        <button id="play" type="button" aria-label="Pausar recorrido">Pausar</button>
+        <button id="sound" type="button" aria-pressed="false">Activar sonido</button>
+      </div>
+      <noscript><p><a href="assets/recorrido-izamaiz.mp4">Abrir video con sonido</a></p></noscript>
+    </div>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

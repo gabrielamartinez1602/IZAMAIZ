@@ -1,0 +1,7 @@
+.DS_Store
+__pycache__/
+*.pyc
+work/revision-19/
+outputs/
+.env
+.env.*
