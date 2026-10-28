@@ -21,4 +21,25 @@ subtitleButton.addEventListener('click',()=>{
 });
 video.addEventListener('timeupdate',renderCaption);
 video.addEventListener('seeked',renderCaption);
-// Let the browser's own play control handle sound and playback on mobile.
+
+
+// Prefer sound; fall back to muted autoplay when mobile browser policy requires it.
+let awaitingSound=false;
+async function autoplayVideo(){
+ video.muted=false;
+ try{await video.play();}
+ catch(error){
+  if(error.name!=='NotAllowedError')return;
+  video.muted=true;awaitingSound=true;
+  try{await video.play();}catch(error){/* Native controls remain available, including in Low Power Mode. */}
+ }
+}
+function enableSound(){
+ if(!awaitingSound)return;
+ awaitingSound=false;video.muted=false;
+ if(video.paused)video.play().catch(()=>{});
+}
+if('PointerEvent' in window)document.addEventListener('pointerdown',enableSound,{capture:true,passive:true});
+else document.addEventListener('touchstart',enableSound,{capture:true,passive:true});
+document.addEventListener('keydown',enableSound,{capture:true});
+autoplayVideo();
