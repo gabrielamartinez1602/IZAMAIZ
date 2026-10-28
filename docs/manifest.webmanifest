@@ -2,11 +2,9 @@
   "name": "IZAMAIZ · El viaje del maíz",
   "short_name": "IZAMAIZ",
   "id": "./",
-  "start_url": "./?app=1&v=50",
+  "start_url": "./?app=1&v=52",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#343c2b",
-  "theme_color": "#343c2b",
   "icons": [
     {
       "src": "assets/logo-original.png",
