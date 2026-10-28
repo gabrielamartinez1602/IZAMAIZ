@@ -33,20 +33,40 @@ video.addEventListener('seeking',()=>syncBackground(true));
 video.addEventListener('timeupdate',()=>syncBackground());
 if(!video.paused)background.play().catch(()=>{});
 
-// Extend actual scene imagery behind safe areas in standalone mode.
-const sceneCanvas=document.createElement('canvas');sceneCanvas.width=36;sceneCanvas.height=78;
-const sceneContext=sceneCanvas.getContext('2d',{willReadFrequently:true});
-let lastScenePaint=-Infinity;
-function paintSurroundings(force=false){
- if(!force&&Math.abs(video.currentTime-lastScenePaint)<.3)return;
- if(background.readyState<2||!sceneContext)return;
- lastScenePaint=video.currentTime;
- try{
-  sceneContext.drawImage(background,0,0,36,78);
-  document.documentElement.style.setProperty('--scene-image',`url("${sceneCanvas.toDataURL('image/jpeg',.8)}")`);
- }catch(error){/* Video keeps playing if an older browser cannot sample the background. */}
+// Match the actual video borders with smoothly changing surrounding colors.
+const edgeCanvas=document.createElement('canvas');edgeCanvas.width=36;edgeCanvas.height=64;
+const edgeContext=edgeCanvas.getContext('2d',{willReadFrequently:true});
+const browserTheme=document.querySelector('meta[name="theme-color"]');
+let currentTop=[52,60,43],currentBottom=[52,60,43],targetTop=currentTop.slice(),targetBottom=currentBottom.slice();
+let colorFrame=null,lastColorTime=0,lastThemeTime=0;
+function edgeAverage(pixels,startRow,endRow){
+ const sum=[0,0,0];let count=0;
+ for(let y=startRow;y<endRow;y++)for(let x=0;x<36;x++){const i=(y*36+x)*4;for(let k=0;k<3;k++)sum[k]+=pixels[i+k];count++;}
+ return sum.map(v=>v/count);
 }
-background.addEventListener('loadeddata',()=>paintSurroundings(true));
-background.addEventListener('seeked',()=>paintSurroundings(true));
-video.addEventListener('timeupdate',()=>paintSurroundings());
-video.addEventListener('ended',()=>paintSurroundings(true));
+function rgb(a){return `rgb(${a.map(Math.round).join(',')})`;}
+function smoothEdges(now){
+ const dt=lastColorTime?Math.min((now-lastColorTime)/1000,.12):.08;lastColorTime=now;
+ const blend=1-Math.exp(-dt/.45);
+ currentTop=currentTop.map((v,k)=>v+(targetTop[k]-v)*blend);
+ currentBottom=currentBottom.map((v,k)=>v+(targetBottom[k]-v)*blend);
+ const root=document.documentElement.style;
+ root.setProperty('--edge-top',rgb(currentTop));root.setProperty('--edge-bottom',rgb(currentBottom));root.setProperty('--scene-color',rgb(currentTop));
+ if(now-lastThemeTime>100){browserTheme.setAttribute('content',rgb(currentTop));lastThemeTime=now;}
+ const remaining=Math.max(...currentTop.map((v,k)=>Math.abs(v-targetTop[k])),...currentBottom.map((v,k)=>Math.abs(v-targetBottom[k])));
+ if(remaining>.25)colorFrame=requestAnimationFrame(smoothEdges);else{browserTheme.setAttribute('content',rgb(targetTop));colorFrame=null;lastColorTime=0;}
+}
+function paintSurroundings(){
+ if(video.readyState<2||!edgeContext)return;
+ try{
+  edgeContext.drawImage(video,0,0,36,64);
+  const pixels=edgeContext.getImageData(0,0,36,64).data;
+  targetTop=edgeAverage(pixels,0,3);targetBottom=edgeAverage(pixels,61,64);
+  if(video.currentTime>=54.1)targetTop=targetBottom=[99,23,48];
+  if(colorFrame===null)colorFrame=requestAnimationFrame(smoothEdges);
+ }catch(error){/* Keep the previous matching tint if a frame is not ready. */}
+}
+video.addEventListener('loadeddata',paintSurroundings);
+video.addEventListener('seeked',paintSurroundings);
+video.addEventListener('timeupdate',paintSurroundings);
+video.addEventListener('ended',paintSurroundings);
