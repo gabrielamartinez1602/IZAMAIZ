@@ -3,6 +3,7 @@ import numpy as np,subprocess,wave,json
 R=Path(__file__).resolve().parents[1];D=R/'work/revision-25';D.mkdir(exist_ok=True);import os,shutil
 FF=os.environ.get('FFMPEG_BINARY') or shutil.which('ffmpeg')
 if not FF: raise RuntimeError('Instala FFmpeg o define FFMPEG_BINARY.')
+(R/'outputs').mkdir(exist_ok=True)
 SR=48000;duration=63.5;N=round(SR*duration);rng=np.random.default_rng(842)
 fx=np.zeros((N,2),np.float32);tracks={}
 def noise(n,low,high):
@@ -65,7 +66,7 @@ for name,track in tracks.items():
  positions=np.flatnonzero(np.max(np.abs(track),axis=1)>1e-7)
  save(D/(name+'.wav'),track[positions[0]:positions[-1]+1])
 print(json.dumps({'duration':duration,'peak_dBFS':round(float(20*np.log10(np.max(np.abs(mix)))),2),'effects_peak_dBFS':round(float(20*np.log10(np.max(np.abs(fx)))),2),'no_clipping':bool(np.max(np.abs(mix))<1)}))
-for old,new in [('izamaiz-v24-recorrido-mezcla-boceto.mp4','izamaiz-v25-sonido-boceto.mp4'),('izamaiz-v24-publico.mp4','izamaiz-v25-publico.mp4')]:
- subprocess.run([FF,'-v','error','-y','-i',str(R/'outputs'/old),'-i',str(D/'mezcla-final.wav'),'-map','0:v:0','-map','1:a:0','-c:v','copy','-c:a','aac','-b:a','192k','-movflags','+faststart','-shortest',str(R/'outputs'/new)],check=True)
+for old,new in [('drafts/izamaiz-v24-boceto.mp4','izamaiz-v25-sonido-boceto.mp4'),('docs/assets/recorrido-izamaiz.mp4','izamaiz-v25-publico.mp4')]:
+ subprocess.run([FF,'-v','error','-y','-i',str(R/old),'-i',str(D/'mezcla-final.wav'),'-map','0:v:0','-map','1:a:0','-c:v','copy','-c:a','aac','-b:a','192k','-movflags','+faststart','-shortest',str(R/'outputs'/new)],check=True)
  subprocess.run([FF,'-v','error','-i',str(R/'outputs'/new),'-f','null','-'],check=True)
 print('Videos con efectos sincronizados verificados; imagen intacta.')
