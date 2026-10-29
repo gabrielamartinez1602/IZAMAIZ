@@ -52,7 +52,7 @@ window.addEventListener('pageshow',resumePlayback);
 window.addEventListener('online',resumePlayback);
 document.addEventListener('visibilitychange',resumePlayback);
 video.addEventListener('error',()=>{video.controls=true;});
-video.muted=false;
+video.muted=true;awaitingSound=true;
 requestPlayback();
 
 // Match the actual video borders with smoothly changing surrounding colors.
